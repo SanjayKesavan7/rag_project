@@ -2,11 +2,16 @@ import fs from "fs";
 import path from "path";
 import { PDFExtract } from "pdf.js-extract";
 import { pipeline } from "@huggingface/transformers";
-// import { saveToDb } from "./db.js";
+import { saveToDb } from "./db.js";
 
 const pdfExtract = new PDFExtract();
 
-function chunkText(text, sourceName, chunkSize = 300, chunkOverlap = 50) {
+export function chunkText(
+  text,
+  sourceName,
+  chunkSize = 300,
+  chunkOverlap = 50
+) {
   if (chunkSize <= chunkOverlap) {
     throw new Error(
       `Invalid chunk settings: chunkSize (${chunkSize}) must be greater than chunkOverlap (${chunkOverlap}).`
@@ -30,7 +35,7 @@ function chunkText(text, sourceName, chunkSize = 300, chunkOverlap = 50) {
   return chunks;
 }
 
-async function processDocument(filePath) {
+export async function processDocument(filePath) {
   const dataBuffer = fs.readFileSync(filePath);
   const data = await pdfExtract.extractBuffer(dataBuffer, {});
   const fullText = data.pages
@@ -59,8 +64,6 @@ async function processDocument(filePath) {
   output.dispose();
   console.log(chunks);
   console.log(`Processed ${chunks.length} chunks from ${sourceName}.`);
-  //   await saveToDb(chunks);
+  await saveToDb(chunks);
   return chunks;
 }
-
-processDocument("./sample.pdf");

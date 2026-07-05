@@ -2,3 +2,6 @@ backend/node_modules
 backend/sample.pdf
 .agents
 chroma-data
+backend/.env
+.env
+backend/uploads
