@@ -35,14 +35,14 @@ export function chunkText(
   return chunks;
 }
 
-export async function processDocument(filePath) {
+export async function processDocument(filePath, sourceNameOverride) {
   const dataBuffer = fs.readFileSync(filePath);
   const data = await pdfExtract.extractBuffer(dataBuffer, {});
   const fullText = data.pages
     .map((page) => page.content.map((item) => item.str).join(" "))
     .join("\n");
 
-  const sourceName = path.basename(filePath);
+  const sourceName = path.basename(sourceNameOverride || filePath);
   const chunks = chunkText(fullText, sourceName, 300, 50);
 
   const embedder = await pipeline(
@@ -62,8 +62,8 @@ export async function processDocument(filePath) {
     chunks[i].vector = vectors[i];
   }
   output.dispose();
-  console.log(chunks);
-  console.log(`Processed ${chunks.length} chunks from ${sourceName}.`);
+  // console.log(chunks);
+  // console.log(`Processed ${chunks.length} chunks from ${sourceName}.`);
   await saveToDb(chunks);
   return chunks;
 }

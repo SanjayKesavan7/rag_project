@@ -15,6 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+let activeSourceName = null;
 
 const uploadsDir = path.join(process.cwd(), "uploads");
 fs.mkdirSync(uploadsDir, { recursive: true });
@@ -25,9 +26,13 @@ app.post("/upload", upload.single("document"), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "no file attached" });
     }
-    await processDocument(req.file.path);
+    activeSourceName = path.basename(req.file.originalname);
+    await processDocument(req.file.path, activeSourceName);
     fs.unlinkSync(req.file.path);
-    return res.json({ message: "file uploaded successfully!" });
+    return res.json({
+      message: "file uploaded successfully!",
+      source: activeSourceName,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to process document" });
@@ -36,6 +41,9 @@ app.post("/upload", upload.single("document"), async (req, res) => {
 
 app.post("/chat", async (req, res) => {
   const { question } = req.body;
+  if (!activeSourceName) {
+    return res.status(400).json({ error: "Upload a PDF before asking a question." });
+  }
   const embedder = await pipeline(
     "feature-extraction",
     "Xenova/all-MiniLM-L6-v2"
@@ -44,7 +52,7 @@ app.post("/chat", async (req, res) => {
   const queryvector = output.tolist()[0];
   output.dispose();
 
-  const searchResults = await searchDb([queryvector]);
+  const searchResults = await searchDb([queryvector], 3, activeSourceName);
 
   const retrievedChunks = searchResults.documents[0];
   if (!retrievedChunks || retrievedChunks.length === 0) {
@@ -64,7 +72,7 @@ app.post("/chat", async (req, res) => {
 
   const chatcompletion = await groq.chat.completions.create({
     messages: [{ content: prompt, role: "user" }],
-    model: "llama-3.1-8b-instant",
+    model: "llama-3.3-70b-versatile",
     temperature: 0.1,
   });
 
@@ -74,7 +82,7 @@ app.post("/chat", async (req, res) => {
   });
 });
 
-const port = 3000;
+const port = Number(process.env.PORT || 3000);
 app.listen(port, () => {
-  console.log("server running successfully at port 3000");
+  console.log(`server running successfully at port ${port}`);
 });

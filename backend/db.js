@@ -24,13 +24,18 @@ export async function saveToDb(chunks) {
   console.log("wrote to chroma db successfully!");
 }
 
-export async function searchDb(queryVector, limit = 3) {
+export async function searchDb(queryVector, limit = 3, sourceName) {
   const collection = await getCollection();
-
-  const results = await collection.query({
+  const queryOptions = {
     queryEmbeddings: queryVector,
     nResults: limit,
-  });
+  };
+
+  if (sourceName) {
+    queryOptions.where = { source: { $eq: sourceName } };
+  }
+
+  const results = await collection.query(queryOptions);
 
   return results;
 }
