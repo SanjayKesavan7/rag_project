@@ -9,7 +9,7 @@ An AI-powered recipe assistant built with **LangChain**, **ChromaDB**, and **Gro
 | **Framework** | LangChain (Python) + LangFlow |
 | **Architecture** | RAG-based **Multi-Agent** System |
 | **Vector Database** | ChromaDB (persistent, local) |
-| **LLM** | Groq — Llama 3.3 70B Versatile |
+| **LLM** | Groq — GPT OSS 120B |
 | **Embeddings** | HuggingFace `all-MiniLM-L6-v2` |
 | **Backend** | Python / FastAPI |
 | **Frontend** | React 19 / Vite |
