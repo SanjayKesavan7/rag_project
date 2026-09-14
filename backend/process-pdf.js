@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { PDFExtract } from "pdf.js-extract";
-import { pipeline } from "@huggingface/transformers";
 import { saveToDb } from "./db.js";
+import { getEmbedder } from "./embedder.js";
+import { EMBEDDING_BATCH_SIZE } from "./constants.js";
 
 const pdfExtract = new PDFExtract();
 
@@ -35,6 +36,16 @@ export function chunkText(
   return chunks;
 }
 
+function batchArray(items, batchSize) {
+  const batches = [];
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    batches.push(items.slice(i, i + batchSize));
+  }
+
+  return batches;
+}
+
 export async function processDocument(filePath, sourceNameOverride) {
   const dataBuffer = fs.readFileSync(filePath);
   const data = await pdfExtract.extractBuffer(dataBuffer, {});
@@ -44,26 +55,31 @@ export async function processDocument(filePath, sourceNameOverride) {
 
   const sourceName = path.basename(sourceNameOverride || filePath);
   const chunks = chunkText(fullText, sourceName, 300, 50);
+  const embedder = await getEmbedder();
+  const chunkBatches = batchArray(chunks, EMBEDDING_BATCH_SIZE);
 
-  const embedder = await pipeline(
-    "feature-extraction",
-    "Xenova/all-MiniLM-L6-v2"
-  );
+  for (let i = 0; i < chunkBatches.length; i++) {
+    const chunkBatch = chunkBatches[i];
+    const output = await embedder(
+      chunkBatch.map((chunk) => chunk.text),
+      {
+        pooling: "mean",
+        normalize: true,
+      }
+    );
 
-  const textArray = chunks.map((chunk) => chunk.text);
+    const vectors = output.tolist();
+    output.dispose();
 
-  const output = await embedder(textArray, {
-    pooling: "mean",
-    normalize: true,
-  });
+    for (let j = 0; j < chunkBatch.length; j++) {
+      chunkBatch[j].vector = vectors[j];
+    }
 
-  const vectors = output.tolist();
-  for (let i = 0; i < chunks.length; i++) {
-    chunks[i].vector = vectors[i];
+    await saveToDb(chunkBatch);
   }
-  output.dispose();
-  // console.log(chunks);
-  // console.log(`Processed ${chunks.length} chunks from ${sourceName}.`);
-  await saveToDb(chunks);
-  return chunks;
+
+  return {
+    sourceName,
+    chunkCount: chunks.length,
+  };
 }

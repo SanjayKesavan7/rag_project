@@ -1,0 +1,2 @@
+export const EMBEDDING_BATCH_SIZE = 16;
+export const CHROMA_INSERT_BATCH_SIZE = 100;

@@ -1,7 +1,25 @@
+# Node.js (old backend)
 backend/node_modules
 backend/sample.pdf
+backend/.env
+backend/uploads
+
+# Python backend
+backend-py/.env
+backend-py/venv/
+backend-py/__pycache__/
+backend-py/app/__pycache__/
+backend-py/app/agents/__pycache__/
+backend-py/chroma_data/
+backend-py/uploads/
+*.pyc
+
+# Frontend
+frontend/node_modules
+frontend/dist
+
+# General
 .agents
 chroma-data
-backend/.env
 .env
-backend/uploads
+*.log

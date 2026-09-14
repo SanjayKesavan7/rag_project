@@ -5,10 +5,10 @@ import fs from "fs";
 import path from "path";
 import "dotenv/config";
 import Groq from "groq-sdk";
-import { pipeline } from "@huggingface/transformers";
 
 import { processDocument } from "./process-pdf.js";
 import { searchDb } from "./db.js";
+import { getEmbedder } from "./embedder.js";
 
 const app = express();
 app.use(cors());
@@ -27,15 +27,19 @@ app.post("/upload", upload.single("document"), async (req, res) => {
       return res.status(400).json({ error: "no file attached" });
     }
     activeSourceName = path.basename(req.file.originalname);
-    await processDocument(req.file.path, activeSourceName);
-    fs.unlinkSync(req.file.path);
+    const result = await processDocument(req.file.path, activeSourceName);
     return res.json({
       message: "file uploaded successfully!",
       source: activeSourceName,
+      chunkCount: result.chunkCount,
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to process document" });
+  } finally {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
   }
 });
 
@@ -44,10 +48,7 @@ app.post("/chat", async (req, res) => {
   if (!activeSourceName) {
     return res.status(400).json({ error: "Upload a PDF before asking a question." });
   }
-  const embedder = await pipeline(
-    "feature-extraction",
-    "Xenova/all-MiniLM-L6-v2"
-  );
+  const embedder = await getEmbedder();
   const output = await embedder(question, { pooling: "mean", normalize: true });
   const queryvector = output.tolist()[0];
   output.dispose();
